@@ -140,62 +140,11 @@ fi
 $USERCMD bash -l -c 'gpg --check-trustdb' # first run will create ~/.gnupg/gpg.conf
 echo "keyserver-options auto-key-retrieve" | tee -a $SCHROOT_BASE/$TARGET/var/lib/jenkins/.gnupg/gpg.conf
 
-# NOTE: install pacman-git because there are the reproducible patches we need
-# this is 2017-11-02 on the rws3 in berlin, this can be dropped after the next
-# pacman release.
-# The workaround with sh -c is needed to delay the shell expansion due to chroot
-WGET_OPTS=''
+# Disable SSL verification for future builds
 if [ "$HOSTNAME" = "profitbricks-build4-amd64" ] ; then
-	WGET_OPTS="--no-check-certificate"
+	export GIT_SSL_NO_VERIFY=1
 fi
 
-PACMAN_GIT_SNAPSHOT="$(mktemp --tmpdir=$TEMPDIR archlinuxrb-PACMAN-GIT-XXXXXXXXXXXX)"
-wget $WGET_OPTS -O "$PACMAN_GIT_SNAPSHOT" "https://aur.archlinux.org/cgit/aur.git/snapshot/pacman-git.tar.gz"
-
-$USERCMD bash <<-__END__
-set -e
-tar -xzvf "$PACMAN_GIT_SNAPSHOT" -C /
-cd /pacman-git
-if [[ $HOSTNAME = profitbricks-build4-amd64 ]]; then
-    export GIT_SSL_NO_VERIFY=1
-fi
-MAKEFLAGS="-j$NUM_CPU" makepkg
-__END__
-$ROOTCMD sh -c 'yes | pacman -U /pacman-git/pacman-*-x86_64.pkg.tar.xz'
-
-# fix /etc/pacman.conf. pacman-git doesn't have any repos configured
-sudo tee -a $SCHROOT_BASE/$TARGET/etc/pacman.conf <<-__END__
-#[testing]
-#Include = /etc/pacman.d/mirrorlist
-
-[core]
-Include = /etc/pacman.d/mirrorlist
-
-[extra]
-Include = /etc/pacman.d/mirrorlist
-
-#[community-testing]
-#Include = /etc/pacman.d/mirrorlist
-
-[community]
-Include = /etc/pacman.d/mirrorlist
-
-# If you want to run 32 bit applications on your x86_64 system,
-# enable the multilib repositories as required here.
-
-#[multilib-testing]
-#Include = /etc/pacman.d/mirrorlist
-
-[multilib]
-Include = /etc/pacman.d/mirrorlist
-__END__
-
-$ROOTCMD sed -i "s/^PKGEXT='.pkg.tar.gz'/PKGEXT='.pkg.tar.xz'/" /etc/makepkg.conf
-$ROOTCMD sed -i "s|/usr/bin/curl |/usr/bin/curl -k |" /etc/makepkg.conf
-$ROOTCMD sed -i 's/^#CPPFLAGS\s*=.*/CPPFLAGS="-D_FORTIFY_SOURCE=2"/' /etc/makepkg.conf
-$ROOTCMD sed -i 's/^#CFLAGS\s*=.*/CFLAGS="-march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt"/' /etc/makepkg.conf
-$ROOTCMD sed -i 's/^#CXXFLAGS\s*=.*/CXXFLAGS="-march=x86-64 -mtune=generic -O2 -pipe -fstack-protector-strong -fno-plt"/' /etc/makepkg.conf
-$ROOTCMD sed -i 's/^#LDFLAGS\s*=.*/LDFLAGS="-Wl,-O1,--sort-common,--as-needed,-z,relro,-z,now"/' /etc/makepkg.conf
 $ROOTCMD sed -i 's/^#PACKAGER\s*=.*/PACKAGER="Reproducible Arch Linux tests"/' /etc/makepkg.conf
 
 $ROOTCMD sed -i "s|^#XferCommand = /usr/bin/curl -C -|XferCommand = /usr/bin/curl -C - --proxy $http_proxy|" /etc/pacman.conf
@@ -203,6 +152,8 @@ if [ "$HOSTNAME" = "profitbricks-build4-amd64" ] ; then
 	# disable signature verification so packages won't fail to install when setting the time to +$x years
 	$ROOTCMD sed -i -E 's/^#?SigLevel\s*=.*/SigLevel = Never/g' /etc/pacman.conf
 	$ROOTCMD sed -i "s|^XferCommand = /usr/bin/curl -C -|XferCommand = /usr/bin/curl --insecure -C -|" /etc/pacman.conf
+	# Disable SSL cert checking for future builds
+	$ROOTCMD sed -i "s|/usr/bin/curl |/usr/bin/curl -k |" /etc/makepkg.conf
 fi
 
 echo "============================================================================="
