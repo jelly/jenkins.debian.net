@@ -350,6 +350,7 @@ write_page_intro() {
 		write_page " </ul></li>"
 		write_page " <li>user tools, for users to verify all of this easily.</li>"
 		write_page "</ul></p>"
+		write_page "<p>If you want to help out or discuss reproducible builds in $PROJECTNAME, feel free to join #archlinux-reproducible on freenode.</p>"
 	elif [ "$1" = "fedora-23" ] ; then
 		local PROJECTNAME="Fedora 23"
 		write_page "        <p><em>Reproducible $PROJECTNAME</em> is a (currently somewhat stalled) effort to apply this to $PROJECTNAME, which is rather obvious with 23… <br/> $PROJECTNAME packages are build twice, with a few variations added and then the resulting packages from the two builds are compared using <a href=\"https://tracker.debian.org/diffoscope\">diffoscope</a>. Please note that the toolchain is not varied at all as the rebuild happens on exactly the same system. More variations are expected to be seen in the wild.</p>"
