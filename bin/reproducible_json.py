@@ -18,10 +18,12 @@ apt_pkg.init_system()
 import tempfile
 import subprocess
 
-from rblib import query_db
+from sqlalchemy.sql import text
+
+from rblib import query_db, get_distribution_id
 from rblib.confparse import log
 from rblib.const import (
-    DISTRO_URL,
+    DISTRO, DISTRO_URL,
     REPRODUCIBLE_JSON, REPRODUCIBLE_TRACKER_JSON,
     filter_query,
 )
@@ -29,15 +31,17 @@ from rblib.const import (
 output = []
 output4tracker = []
 
-log.info('Creating json dump of current reproducible status')
+log.info('Creating json dump of current reproducible status for %s', DISTRO)
+
+distro_id = get_distribution_id(DISTRO)
 
 # filter_query is defined in reproducible_common.py and excludes some FTBFS issues
-query = "SELECT s.name, r.version, s.suite, s.architecture, r.status, r.build_date " + \
+query = text("SELECT s.name, r.version, s.suite, s.architecture, r.status, r.build_date " + \
         "FROM results AS r JOIN sources AS s ON r.package_id = s.id "+ \
-        "WHERE status != '' AND status NOT IN ('NFU', 'E404', 'blacklisted' ) AND (( status != 'FTBFS' ) OR " \
-        " ( status = 'FTBFS' and r.package_id NOT IN (SELECT n.package_id FROM NOTES AS n WHERE " + filter_query + " )))"
+        "WHERE status != '' AND s.distribution = :distro AND status NOT IN ('NFU', 'E404', 'blacklisted' ) AND (( status != 'FTBFS' ) OR " \
+        " ( status = 'FTBFS' and r.package_id NOT IN (SELECT n.package_id FROM NOTES AS n WHERE " + filter_query + " )))")
 
-result = sorted(query_db(query))
+result = sorted(query_db(query, distro=distro_id))
 log.info('\tprocessing ' + str(len(result)))
 
 keys = ['package', 'version', 'suite', 'architecture', 'status', 'build_date']

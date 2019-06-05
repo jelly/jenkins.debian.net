@@ -4,7 +4,7 @@
 # Copyright © 2015-2017 Holger Levsen <holger@layer-acht.org>
 # Licensed under GPL-2
 
-from sqlalchemy import Table
+from sqlalchemy import Table, text
 from sqlalchemy.exc import NoSuchTableError, OperationalError
 
 from .confparse import log
@@ -75,3 +75,12 @@ def get_trailing_bug_icon(bug, bugs, package=None):
         except KeyError:
             pass
     return html
+
+
+def get_distribution_id(distroname):
+    query = text("SELECT id FROM distributions WHERE name=:distroname")
+    result = query_db(query, distroname=distroname)
+    if not result:
+        return
+
+    return result[0][0]
